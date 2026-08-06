@@ -1,0 +1,12 @@
+scratch/
+__pycache__/
+*.pyc
+*.pyo
+tmp/
+*.egg-info/
+dist/
+build/
+.env
+.venv/
+venv/
+*.epub

@@ -1,0 +1,9 @@
+services:
+  epubkit:
+    build: .
+    container_name: epubkit
+    restart: unless-stopped
+    ports:
+      # Host:Container
+      # Mapped to host port 8003 to avoid conflict with port 8000
+      - "8003:8000"
