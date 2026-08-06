@@ -1,8 +1,16 @@
-# epubkit-selfhost
+<div align="center">
+  <img src="static/favicon.svg" width="96" height="96" alt="EPUB Kit Logo">
+  <h1>epubkit-selfhost</h1>
+  <p><strong>Self-Hostable EPUB Optimizer for XTEINK X4, X4 Pro &amp; X3 E-Readers</strong></p>
 
-[![Build and Publish Docker Image](https://github.com/malv-ryx/epubkit-selfhost/actions/workflows/docker.yml/badge.svg)](https://github.com/malv-ryx/epubkit-selfhost/actions/workflows/docker.yml)
-[![GHCR Container](https://img.shields.io/badge/GHCR-ghcr.io%2Fmalv--ryx%2Fepubkit--selfhost-2088FF?logo=github)](https://github.com/malv-ryx/epubkit-selfhost/pkgs/container/epubkit-selfhost)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+  <p>
+    <a href="https://github.com/malv-ryx/epubkit-selfhost/actions/workflows/docker.yml"><img src="https://github.com/malv-ryx/epubkit-selfhost/actions/workflows/docker.yml/badge.svg" alt="Build and Publish Docker Image"></a>
+    <a href="https://github.com/malv-ryx/epubkit-selfhost/pkgs/container/epubkit-selfhost"><img src="https://img.shields.io/badge/GHCR-ghcr.io%2Fmalv--ryx%2Fepubkit--selfhost-2088FF?logo=github" alt="GHCR Container"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  </p>
+</div>
+
+---
 
 A self-hostable, web-based EPUB optimizer tailored for **XTEINK X4**, **X4 Pro**, and **X3** e-ink readers. Just drop in any EPUB file(s) to generate clean, ultra-lightweight e-book files ready for your XTEINK device.
 
