@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPUB Kit — EPUB Optimizer for Xteink Readers</title>
+    <meta name="description" content="Optimize any EPUB for Xteink readers (X3, X4 and more). Converts images, strips fonts, cleans CSS and metadata, fixes TOC — all in one pass.">
+    <meta name="keywords" content="epub, e-ink, ebook, optimizer, xteink, x4, x3, e-reader, light novel, calibre">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="EPUB Kit — EPUB Optimizer for Xteink Readers">
+    <meta property="og:description" content="Drop in any EPUB, get back a clean optimized file ready for your Xteink reader. Images, fonts, CSS, metadata, TOC — all fixed in one pass.">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="EPUB Kit">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="EPUB Kit — EPUB Optimizer for Xteink Readers">
+    <meta name="twitter:description" content="Drop in any EPUB, get back a clean optimized file ready for your Xteink reader.">
+
+    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <div class="logo">
+                    <span class="logo-icon">📖</span>
+                    <h1>EPUB Kit <span class="badge-selfhost">Self-Hosted</span></h1>
+                </div>
+                <button id="theme-toggle" class="theme-toggle" title="Toggle Theme" aria-label="Toggle Theme">
+                    <span class="theme-toggle-icon">🌙</span>
+                    <span class="theme-toggle-text">Dark</span>
+                </button>
+            </div>
+            <p class="subtitle">Optimize any EPUB file(s) for XTEINK e-ink readers</p>
+        </header>
+
+        <!-- About -->
+        <div class="about-section">
+            <p class="about-lead">Drop in any EPUB file(s) to generate clean, ultra-lightweight e-book files tuned for your <strong>XTEINK X4</strong>, <strong>X4 Pro</strong> (480&times;800), and <strong>X3</strong> (528&times;792) 4-level grayscale displays.</p>
+            <p class="about-lead">An automated 20-step pipeline handles 4-level image dithering, SVG cover unwrapping, font and CSS bloat removal, OCR ligature and whitespace repair, store metadata stripping, and HTML attribute cleanup &mdash; optimized for instant rendering on custom e-reader firmware.</p>
+            <div class="about-grid">
+                <div class="about-item">
+                    <span class="about-icon">🖼</span>
+                    <div>
+                        <strong>Images</strong>
+                        <span>4-level grayscale with dithering, resized to your device's screen, baseline JPEG</span>
+                    </div>
+                </div>
+                <div class="about-item">
+                    <span class="about-icon">📝</span>
+                    <div>
+                        <strong>Text</strong>
+                        <span>Fixes spacing, OCR errors, smart quotes, mojibake encoding</span>
+                    </div>
+                </div>
+                <div class="about-item">
+                    <span class="about-icon">🧹</span>
+                    <div>
+                        <strong>Cleanup</strong>
+                        <span>Strips fonts, unused CSS, store metadata, OS artifacts</span>
+                    </div>
+                </div>
+                <div class="about-item">
+                    <span class="about-icon">📑</span>
+                    <div>
+                        <strong>Structure</strong>
+                        <span>Repairs HTML, validates TOC, generates covers, fixes references</span>
+                    </div>
+                </div>
+            </div>
+            <a href="https://github.com/malv-ryx/epubkit-selfhost" target="_blank" rel="noopener" class="about-github">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                View on GitHub &mdash; open source &bull; MIT license
+            </a>
+        </div>
+
+        <!-- Upload Zone -->
+        <div id="upload-zone" class="upload-zone">
+            <div class="upload-content">
+                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <p class="upload-label">Drop EPUB files here</p>
+                <p class="upload-hint">or click to browse &bull; up to 100 MB each</p>
+            </div>
+            <input type="file" id="file-input" accept=".epub" multiple hidden>
+        </div>
+
+        <!-- File List (after upload) -->
+        <div id="file-list-header" class="file-list-header" hidden>
+            <span id="file-count-label" class="file-count-label">Uploaded Files (0)</span>
+            <div class="file-actions">
+                <button id="add-more-btn" class="btn-subtle" title="Add more files">+ Add Files</button>
+                <button id="clear-all-btn" class="btn-subtle danger" title="Clear all uploaded files">Clear All</button>
+            </div>
+        </div>
+        <div id="file-list" class="file-list" hidden></div>
+
+        <!-- Options Panel -->
+        <div id="options-panel" class="options-panel" hidden>
+            <div class="section-header">
+                <h2>Options</h2>
+            </div>
+
+            <div class="device-bar">
+                <span class="device-label">Device</span>
+                <div class="device-toggle">
+                    <button class="device-btn active" data-device="x4">
+                        <span class="device-name">XTEINK X4 & X4 Pro</span>
+                        <span class="device-desc">480&times;800 portrait &bull; 4.3&Prime;</span>
+                    </button>
+                    <button class="device-btn" data-device="x3">
+                        <span class="device-name">XTEINK X3</span>
+                        <span class="device-desc">528&times;792 portrait &bull; 3.7&Prime;</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="preset-bar">
+                <span class="preset-label">Preset</span>
+                <div class="preset-group">
+                    <button class="preset-btn active" data-preset="full">
+                        <span class="preset-name">Full Clean</span>
+                        <span class="preset-desc">Recommended — images, fonts, CSS, cover, metadata</span>
+                    </button>
+                    <button class="preset-btn" data-preset="quick">
+                        <span class="preset-name">Quick</span>
+                        <span class="preset-desc">Images & text formatting only</span>
+                    </button>
+                    <button class="preset-btn" data-preset="custom">
+                        <span class="preset-name">Custom</span>
+                        <span class="preset-desc">Pick individual options below</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="options-grid">
+                <label class="option">
+                    <input type="checkbox" id="opt-grayscale" checked>
+                    <div class="option-text">
+                        <span class="option-title">4-Level Grayscale <span class="info-icon" data-tooltip="Quantizes images to the SSD1677 4-level grayscale hardware palette with Floyd-Steinberg dithering.">ⓘ</span></span>
+                        <span class="option-desc">Quantize to 4 gray levels with dithering</span>
+                    </div>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-contrast" checked>
+                    <div class="option-text">
+                        <span class="option-title">Contrast Boost <span class="info-icon" data-tooltip="Stretches image histogram and boosts contrast for sharp, easy reading on e-ink.">ⓘ</span></span>
+                        <span class="option-desc">Histogram stretch + contrast boost</span>
+                    </div>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-fonts" checked>
+                    <div class="option-text">
+                        <span class="option-title">Remove Fonts <span class="info-icon" data-tooltip="Deletes TTF/OTF font files and @font-face CSS to save RAM on ESP32 e-readers.">ⓘ</span></span>
+                        <span class="option-desc">Strip embedded fonts to save RAM</span>
+                    </div>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-css" checked>
+                    <div class="option-text">
+                        <span class="option-title">Clean Unused CSS <span class="info-icon" data-tooltip="Parses XHTML content to strip CSS rules that aren't used in the book.">ⓘ</span></span>
+                        <span class="option-desc">Strip CSS rules not matching content</span>
+                    </div>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-textcleanup" checked>
+                    <div class="option-text">
+                        <span class="option-title">Text Formatting Cleanup <span class="info-icon" data-tooltip="Fixes extra spacing, OCR ligatures (fi, fl), smart quotes, and mojibake encoding.">ⓘ</span></span>
+                        <span class="option-desc">Fix extra spaces, ligatures, smart quotes, mojibake</span>
+                    </div>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-cover" checked>
+                    <div class="option-text">
+                        <span class="option-title">Generate Cover if Missing <span class="info-icon" data-tooltip="Generates a crisp title and author cover image if no cover image is found.">ⓘ</span></span>
+                        <span class="option-desc">Create title/author cover if none exists</span>
+                    </div>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-metadata" checked>
+                    <div class="option-text">
+                        <span class="option-title">Clean Store Metadata <span class="info-icon" data-tooltip="Removes store-specific bloat and DRM-adjacent tags from OPF package metadata.">ⓘ</span></span>
+                        <span class="option-desc">Remove Calibre/store bloat tags</span>
+                    </div>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-lightnovel">
+                    <div class="option-text">
+                        <span class="option-title">Light Novel Mode <span class="info-icon" data-tooltip="Rotates landscape images 90° and splits double-page manga spreads for portrait viewing.">ⓘ</span></span>
+                        <span class="option-desc">Rotate & split landscape double-page spreads</span>
+                    </div>
+                </label>
+
+                <div class="option option-wide">
+                    <div class="quality-control">
+                        <div class="quality-header">
+                            <span class="quality-label">Image Compression Quality <span class="info-icon" data-tooltip="All EPUB images (PNG, WEBP, GIF, BMP) are converted & dithered into baseline e-ink JPEG grayscale images.">ⓘ</span></span>
+                            <span id="quality-value">70%</span>
+                        </div>
+                        <div class="quality-presets">
+                            <button class="quality-btn" data-quality="50">Smallest (50%)</button>
+                            <button class="quality-btn active" data-quality="70">Balanced (70%)</button>
+                            <button class="quality-btn" data-quality="85">High Quality (85%)</button>
+                            <button class="quality-btn" data-quality="95">Max Quality (95%)</button>
+                        </div>
+                        <div class="quality-slider-row">
+                            <input type="range" id="opt-quality" min="30" max="95" value="70" step="5">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="process-btn" class="process-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                    <polyline points="16 16 12 12 8 16"/>
+                    <line x1="12" y1="12" x2="12" y2="21"/>
+                    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                </svg>
+                Optimize EPUBs
+            </button>
+        </div>
+
+        <!-- Processing Progress -->
+        <div id="progress-section" class="progress-section" hidden>
+            <div class="section-header">
+                <h2>Processing</h2>
+            </div>
+            <div id="progress-items"></div>
+        </div>
+
+        <!-- Results -->
+        <div id="results-section" class="results-section" hidden>
+            <div class="section-header">
+                <h2>Results</h2>
+            </div>
+            <div id="results-items"></div>
+            <button id="download-all-btn" class="download-all-btn" hidden>Download All (ZIP)</button>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>
+                <span>Based on <a href="https://github.com/b1rdmania/epubkit" target="_blank" rel="noopener">epubkit</a> by <a href="https://github.com/b1rdmania" target="_blank" rel="noopener">@b1rdmania</a></span>
+                <span class="footer-sep">&bull;</span>
+                <span>Forked & optimized by <a href="https://github.com/malv-ryx/" target="_blank" rel="noopener">@malv-ryx</a></span>
+            </p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js?v=3"></script>
+</body>
+</html>
