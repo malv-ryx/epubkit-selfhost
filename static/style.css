@@ -119,9 +119,16 @@ header {
     gap: 10px;
 }
 
-.logo-icon {
-    font-size: 32px;
-    line-height: 1;
+.logo-mark {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(37, 99, 235, 0.3));
+    transition: transform var(--transition);
+}
+
+.logo:hover .logo-mark {
+    transform: scale(1.05);
 }
 
 header h1 {
