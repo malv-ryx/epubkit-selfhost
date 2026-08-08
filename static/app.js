@@ -430,6 +430,7 @@ const valBlacks = document.getElementById('val-blacks');
 const valMidtones = document.getElementById('val-midtones');
 const valWhites = document.getElementById('val-whites');
 const btnResetLevels = document.getElementById('btn-reset-levels');
+const coverPreviewCanvas = document.getElementById('cover-preview-canvas');
 const coverPreviewImg = document.getElementById('cover-preview-img');
 const coverOrigKb = document.getElementById('cover-orig-kb');
 const coverProcKb = document.getElementById('cover-proc-kb');
@@ -437,6 +438,9 @@ const coverLoadingOverlay = document.getElementById('cover-loading-overlay');
 
 let activePreviewTaskId = null;
 let coverPreviewDebounceTimer = null;
+let rawCoverCanvas = null;
+let rawCoverCtx = null;
+let rawCoverOrigBytes = 0;
 
 if (coverAdjustToggle) {
     coverAdjustToggle.addEventListener('change', () => {
@@ -444,34 +448,140 @@ if (coverAdjustToggle) {
             coverAdjustBody.style.opacity = coverAdjustToggle.checked ? '1' : '0.4';
             coverAdjustBody.style.pointerEvents = coverAdjustToggle.checked ? 'auto' : 'none';
         }
-        updateCoverPreview();
+        renderCanvasPreview();
+        queueCoverPreviewUpdate();
     });
 }
 
 function initCoverAdjustment(taskId, origFileSize = 0) {
     activePreviewTaskId = taskId;
+    rawCoverOrigBytes = origFileSize;
     if (coverAdjustCard) {
         coverAdjustCard.style.display = 'block';
     }
     if (origFileSize > 0 && coverOrigKb) {
         coverOrigKb.textContent = formatBytes(origFileSize);
     }
+
+    // Load base cover into offscreen canvas for instant 60fps local rendering
+    const initialUrl = `/cover-preview/${taskId}?black_point=0&white_point=255&gamma=128&contrast=false&grayscale=false&t=${Date.now()}`;
+    const baseImg = new Image();
+    baseImg.crossOrigin = "Anonymous";
+    baseImg.onload = function() {
+        rawCoverCanvas = document.createElement('canvas');
+        const aspect = baseImg.naturalHeight / (baseImg.naturalWidth || 1);
+        rawCoverCanvas.width = 480;
+        rawCoverCanvas.height = Math.round(480 * aspect);
+        rawCoverCtx = rawCoverCanvas.getContext('2d', { willReadFrequently: true });
+        rawCoverCtx.drawImage(baseImg, 0, 0, rawCoverCanvas.width, rawCoverCanvas.height);
+        renderCanvasPreview();
+    };
+    baseImg.src = initialUrl;
+
     updateCoverPreview();
+}
+
+function renderCanvasPreview() {
+    if (!rawCoverCanvas || !rawCoverCtx) return;
+
+    const blacks = sliderBlacks ? parseInt(sliderBlacks.value) : 0;
+    const midtones = sliderMidtones ? parseInt(sliderMidtones.value) : 128;
+    const whites = sliderWhites ? parseInt(sliderWhites.value) : 255;
+    const isGrayscale = coverAdjustToggle ? coverAdjustToggle.checked : true;
+
+    if (valBlacks) valBlacks.textContent = blacks;
+    if (valMidtones) valMidtones.textContent = midtones;
+    if (valWhites) valWhites.textContent = whites;
+
+    const w = rawCoverCanvas.width;
+    const h = rawCoverCanvas.height;
+    const srcData = rawCoverCtx.getImageData(0, 0, w, h);
+    const src = srcData.data;
+
+    const targetCanvas = coverPreviewCanvas;
+    if (!targetCanvas) return;
+    targetCanvas.width = w;
+    targetCanvas.height = h;
+    const targetCtx = targetCanvas.getContext('2d');
+    const outData = targetCtx.createImageData(w, h);
+    const out = outData.data;
+
+    // Precalculate LUT
+    const lut = new Uint8Array(256);
+    const gammaVal = midtones === 128 ? 1.0 : (midtones / 128.0);
+    const diff = Math.max(1, whites - blacks);
+
+    for (let i = 0; i < 256; i++) {
+        let v;
+        if (i <= blacks) v = 0;
+        else if (i >= whites) v = 1.0;
+        else v = (i - blacks) / diff;
+
+        if (gammaVal !== 1.0 && v > 0) {
+            v = Math.pow(v, 1.0 / Math.max(0.1, gammaVal));
+        }
+        lut[i] = Math.min(255, Math.max(0, Math.round(v * 255)));
+    }
+
+    if (!isGrayscale) {
+        for (let i = 0; i < src.length; i += 4) {
+            out[i] = lut[src[i]];
+            out[i + 1] = lut[src[i + 1]];
+            out[i + 2] = lut[src[i + 2]];
+            out[i + 3] = 255;
+        }
+        targetCtx.putImageData(outData, 0, 0);
+        return;
+    }
+
+    // 4-level Floyd-Steinberg error diffusion
+    const gray = new Float32Array(w * h);
+    for (let i = 0, j = 0; i < src.length; i += 4, j++) {
+        const lum = Math.round(0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2]);
+        gray[j] = lut[lum];
+    }
+
+    function findClosest(val) {
+        if (val < 42.5) return 0;
+        if (val < 127.5) return 85;
+        if (val < 212.5) return 170;
+        return 255;
+    }
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const idx = y * w + x;
+            const oldVal = Math.min(255, Math.max(0, gray[idx]));
+            const newVal = findClosest(oldVal);
+            gray[idx] = newVal;
+            const err = oldVal - newVal;
+
+            if (x + 1 < w) gray[idx + 1] += (err * 7) / 16;
+            if (x - 1 >= 0 && y + 1 < h) gray[idx + w - 1] += (err * 3) / 16;
+            if (y + 1 < h) gray[idx + w] += (err * 5) / 16;
+            if (x + 1 < w && y + 1 < h) gray[idx + w + 1] += (err * 1) / 16;
+        }
+    }
+
+    for (let i = 0, j = 0; i < src.length; i += 4, j++) {
+        const v = Math.round(gray[j]);
+        out[i] = v;
+        out[i + 1] = v;
+        out[i + 2] = v;
+        out[i + 3] = 255;
+    }
+
+    targetCtx.putImageData(outData, 0, 0);
 }
 
 function updateCoverPreview() {
     if (!activePreviewTaskId) return;
-    if (coverLoadingOverlay) coverLoadingOverlay.style.display = 'flex';
 
     const blacks = sliderBlacks ? sliderBlacks.value : 0;
     const midtones = sliderMidtones ? sliderMidtones.value : 128;
     const whites = sliderWhites ? sliderWhites.value : 255;
     const isGrayscale = coverAdjustToggle ? coverAdjustToggle.checked : true;
     const contrast = document.getElementById('opt-contrast') ? document.getElementById('opt-contrast').checked : true;
-
-    if (valBlacks) valBlacks.textContent = blacks;
-    if (valMidtones) valMidtones.textContent = midtones;
-    if (valWhites) valWhites.textContent = whites;
 
     const url = `/cover-preview/${activePreviewTaskId}?black_point=${blacks}&white_point=${whites}&gamma=${midtones}&contrast=${contrast}&grayscale=${isGrayscale}&t=${Date.now()}`;
 
@@ -482,22 +592,14 @@ function updateCoverPreview() {
             const proc = res.headers.get('X-Processed-Size');
             if (orig && coverOrigKb) coverOrigKb.textContent = formatBytes(parseInt(orig));
             if (proc && coverProcKb) coverProcKb.textContent = formatBytes(parseInt(proc));
-
-            const blob = await res.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            if (coverPreviewImg) {
-                coverPreviewImg.src = objectUrl;
-            }
-            if (coverLoadingOverlay) coverLoadingOverlay.style.display = 'none';
         })
-        .catch(() => {
-            if (coverLoadingOverlay) coverLoadingOverlay.style.display = 'none';
-        });
+        .catch(() => {});
 }
 
 function queueCoverPreviewUpdate() {
+    renderCanvasPreview();
     if (coverPreviewDebounceTimer) clearTimeout(coverPreviewDebounceTimer);
-    coverPreviewDebounceTimer = setTimeout(updateCoverPreview, 60);
+    coverPreviewDebounceTimer = setTimeout(updateCoverPreview, 120);
 }
 
 [sliderBlacks, sliderMidtones, sliderWhites].forEach(slider => {
@@ -515,7 +617,7 @@ function resetLevel(type, defaultVal) {
     if (type === 'blacks' && sliderBlacks) { sliderBlacks.value = defaultVal; if (valBlacks) valBlacks.textContent = defaultVal; }
     if (type === 'midtones' && sliderMidtones) { sliderMidtones.value = defaultVal; if (valMidtones) valMidtones.textContent = defaultVal; }
     if (type === 'whites' && sliderWhites) { sliderWhites.value = defaultVal; if (valWhites) valWhites.textContent = defaultVal; }
-    updateCoverPreview();
+    queueCoverPreviewUpdate();
 }
 
 if (btnResetLevels) {
