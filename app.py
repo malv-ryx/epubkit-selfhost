@@ -12,14 +12,17 @@ import time
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+import io
+from PIL import Image, ImageOps, ImageEnhance
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Response
 from fastapi.responses import FileResponse, StreamingResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from epub_processor import process_epub, extract_epub_metadata, ProcessingOptions, ProcessingReport
-from image_processor import DEVICE_PROFILES
+from image_processor import DEVICE_PROFILES, _apply_levels, _quantize_to_levels, _handle_transparency
+from metadata_handler import extract_cover_bytes
 
 app = FastAPI(title="epubkit")
 
@@ -149,12 +152,71 @@ async def upload_files(files: list[UploadFile] = File(...)):
     return {"files": results}
 
 
+@app.get("/cover-preview/{task_id}")
+async def cover_preview(
+    task_id: str,
+    black_point: int = 0,
+    white_point: int = 255,
+    gamma: int = 128,
+    contrast: bool = True,
+    grayscale: bool = True,
+):
+    """Dynamic live cover preview with 4-level e-ink dithering and levels adjustment."""
+    if task_id not in tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    file_path = tasks[task_id]["file_path"]
+    cover_data, ext, orig_size = extract_cover_bytes(file_path)
+    if not cover_data:
+        raise HTTPException(status_code=404, detail="No cover image found in EPUB")
+
+    try:
+        img = Image.open(io.BytesIO(cover_data))
+        img = _handle_transparency(img)
+
+        # Scale to portrait cover thumbnail (480px width)
+        img.thumbnail((480, 800), Image.Resampling.LANCZOS)
+
+        if grayscale:
+            img = img.convert('L')
+            # Apply levels
+            if black_point > 0 or white_point < 255 or gamma != 128:
+                img = _apply_levels(img, black_point, white_point, gamma)
+            if contrast:
+                img = ImageOps.autocontrast(img, cutoff=1)
+                enhancer = ImageEnhance.Contrast(img)
+                img = enhancer.enhance(1.5)
+            # Quantize with Floyd-Steinberg dithering to 4 levels
+            img = _quantize_to_levels(img, [0, 85, 170, 255])
+            img = img.convert('RGB')
+        elif contrast:
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.5)
+
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=75, optimize=False)
+        processed_size = len(buf.getvalue())
+        buf.seek(0)
+
+        headers = {
+            "X-Original-Size": str(orig_size),
+            "X-Processed-Size": str(processed_size),
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        }
+        return Response(content=buf.getvalue(), media_type="image/jpeg", headers=headers)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate cover preview: {e}")
+
+
 @app.get("/process/{task_id}")
 async def process_sse(
     task_id: str,
     device: str = "x4",
     grayscale: bool = True,
     contrast: bool = True,
+    black_point: int = 0,
+    white_point: int = 255,
+    gamma: int = 128,
     quality: int = 70,
     remove_fonts: bool = True,
     remove_css: bool = True,
@@ -200,6 +262,9 @@ async def process_sse(
         device=device,
         grayscale=grayscale,
         contrast_boost=contrast,
+        black_point=black_point,
+        white_point=white_point,
+        gamma=gamma,
         quality=quality,
         remove_fonts=remove_fonts,
         remove_unused_css=remove_css,

@@ -42,6 +42,9 @@ class ProcessingOptions:
     grayscale: bool = True
     contrast_boost: bool = True
     contrast_factor: float = 1.5  # Higher default for low-bit-depth displays
+    black_point: int = 0
+    white_point: int = 255
+    gamma: float = 1.0
     quality: int = 70
     eink_quantize: bool = True  # Quantize to device gray levels
     remove_fonts: bool = True
@@ -198,6 +201,9 @@ def process_epub(input_path: str, output_path: str,
             grayscale=options.grayscale,
             contrast_boost=options.contrast_boost,
             contrast_factor=options.contrast_factor,
+            black_point=options.black_point,
+            white_point=options.white_point,
+            gamma=options.gamma,
             quality=options.quality,
             eink_quantize=options.eink_quantize,
             light_novel_mode=options.light_novel_mode,

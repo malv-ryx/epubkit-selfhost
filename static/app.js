@@ -214,6 +214,11 @@ function renderFileList(files) {
 
         fileList.appendChild(card);
     });
+
+    const firstValid = files.find(f => f.task_id && !f.error);
+    if (firstValid) {
+        initCoverAdjustment(firstValid.task_id);
+    }
 }
 
 function resetCardMetadata(btn) {
@@ -397,6 +402,9 @@ function getOptions() {
         device: selectedDevice,
         grayscale: document.getElementById('opt-grayscale').checked,
         contrast: document.getElementById('opt-contrast').checked,
+        black_point: sliderBlacks ? parseInt(sliderBlacks.value) : 0,
+        white_point: sliderWhites ? parseInt(sliderWhites.value) : 255,
+        gamma: sliderMidtones ? parseInt(sliderMidtones.value) : 128,
         quality: parseInt(qualitySlider.value),
         remove_fonts: document.getElementById('opt-fonts').checked,
         remove_css: document.getElementById('opt-css').checked,
@@ -408,6 +416,109 @@ function getOptions() {
         generate_ncx: document.getElementById('opt-ncx') ? document.getElementById('opt-ncx').checked : true,
         custom_patterns: getCustomPatterns(),
     };
+}
+
+// ==================== Grayscale Cover Adjustment ====================
+
+const coverAdjustCard = document.getElementById('cover-adjust-card');
+const coverAdjustToggle = document.getElementById('opt-cover-adjust-toggle');
+const coverAdjustBody = document.getElementById('cover-adjust-body');
+const sliderBlacks = document.getElementById('slider-blacks');
+const sliderMidtones = document.getElementById('slider-midtones');
+const sliderWhites = document.getElementById('slider-whites');
+const valBlacks = document.getElementById('val-blacks');
+const valMidtones = document.getElementById('val-midtones');
+const valWhites = document.getElementById('val-whites');
+const btnResetLevels = document.getElementById('btn-reset-levels');
+const coverPreviewImg = document.getElementById('cover-preview-img');
+const coverOrigKb = document.getElementById('cover-orig-kb');
+const coverProcKb = document.getElementById('cover-proc-kb');
+const coverLoadingOverlay = document.getElementById('cover-loading-overlay');
+
+let activePreviewTaskId = null;
+let coverPreviewDebounceTimer = null;
+
+if (coverAdjustToggle) {
+    coverAdjustToggle.addEventListener('change', () => {
+        if (coverAdjustBody) {
+            coverAdjustBody.style.opacity = coverAdjustToggle.checked ? '1' : '0.4';
+            coverAdjustBody.style.pointerEvents = coverAdjustToggle.checked ? 'auto' : 'none';
+        }
+        updateCoverPreview();
+    });
+}
+
+function initCoverAdjustment(taskId) {
+    activePreviewTaskId = taskId;
+    if (coverAdjustCard) {
+        coverAdjustCard.style.display = 'block';
+    }
+    updateCoverPreview();
+}
+
+function updateCoverPreview() {
+    if (!activePreviewTaskId) return;
+    if (coverLoadingOverlay) coverLoadingOverlay.style.display = 'flex';
+
+    const blacks = sliderBlacks ? sliderBlacks.value : 0;
+    const midtones = sliderMidtones ? sliderMidtones.value : 128;
+    const whites = sliderWhites ? sliderWhites.value : 255;
+    const isGrayscale = coverAdjustToggle ? coverAdjustToggle.checked : true;
+    const contrast = document.getElementById('opt-contrast') ? document.getElementById('opt-contrast').checked : true;
+
+    if (valBlacks) valBlacks.textContent = blacks;
+    if (valMidtones) valMidtones.textContent = midtones;
+    if (valWhites) valWhites.textContent = whites;
+
+    const url = `/cover-preview/${activePreviewTaskId}?black_point=${blacks}&white_point=${whites}&gamma=${midtones}&contrast=${contrast}&grayscale=${isGrayscale}&t=${Date.now()}`;
+
+    const tempImg = new Image();
+    tempImg.onload = function() {
+        if (coverPreviewImg) coverPreviewImg.src = url;
+        if (coverLoadingOverlay) coverLoadingOverlay.style.display = 'none';
+
+        fetch(url, { method: 'HEAD' }).then(res => {
+            const orig = res.headers.get('X-Original-Size');
+            const proc = res.headers.get('X-Processed-Size');
+            if (orig && coverOrigKb) coverOrigKb.textContent = formatBytes(parseInt(orig));
+            if (proc && coverProcKb) coverProcKb.textContent = formatBytes(parseInt(proc));
+        }).catch(() => {});
+    };
+    tempImg.onerror = function() {
+        if (coverLoadingOverlay) coverLoadingOverlay.style.display = 'none';
+    };
+    tempImg.src = url;
+}
+
+function queueCoverPreviewUpdate() {
+    if (coverPreviewDebounceTimer) clearTimeout(coverPreviewDebounceTimer);
+    coverPreviewDebounceTimer = setTimeout(updateCoverPreview, 60);
+}
+
+[sliderBlacks, sliderMidtones, sliderWhites].forEach(slider => {
+    if (slider) {
+        slider.addEventListener('input', () => {
+            if (slider === sliderBlacks && valBlacks) valBlacks.textContent = slider.value;
+            if (slider === sliderMidtones && valMidtones) valMidtones.textContent = slider.value;
+            if (slider === sliderWhites && valWhites) valWhites.textContent = slider.value;
+            queueCoverPreviewUpdate();
+        });
+    }
+});
+
+function resetLevel(type, defaultVal) {
+    if (type === 'blacks' && sliderBlacks) { sliderBlacks.value = defaultVal; if (valBlacks) valBlacks.textContent = defaultVal; }
+    if (type === 'midtones' && sliderMidtones) { sliderMidtones.value = defaultVal; if (valMidtones) valMidtones.textContent = defaultVal; }
+    if (type === 'whites' && sliderWhites) { sliderWhites.value = defaultVal; if (valWhites) valWhites.textContent = defaultVal; }
+    updateCoverPreview();
+}
+
+if (btnResetLevels) {
+    btnResetLevels.addEventListener('click', () => {
+        resetLevel('blacks', 0);
+        resetLevel('midtones', 128);
+        resetLevel('whites', 255);
+    });
 }
 
 // ==================== Text Removal Patterns ====================
@@ -464,6 +575,9 @@ function processFile(taskId, options, editTitle, editAuthor) {
             device: options.device,
             grayscale: options.grayscale,
             contrast: options.contrast,
+            black_point: options.black_point || 0,
+            white_point: options.white_point || 255,
+            gamma: options.gamma || 128,
             quality: options.quality,
             remove_fonts: options.remove_fonts,
             remove_css: options.remove_css,

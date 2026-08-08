@@ -358,3 +358,37 @@ def _sanitize_filename(name: str) -> str:
     name = re.sub(r'-{2,}', '-', name)
 
     return name.strip()
+
+
+def extract_cover_bytes(epub_path: str) -> tuple[Optional[bytes], str, int]:
+    """Extract raw cover image bytes from EPUB archive for live preview."""
+    import zipfile
+    try:
+        with zipfile.ZipFile(epub_path, 'r') as z:
+            meta = extract_epub_metadata(epub_path)
+            cover_href = meta.get('cover_href')
+
+            # 1. Match declared cover_href
+            if cover_href:
+                for name in z.namelist():
+                    if name.endswith(cover_href) or cover_href.endswith(name) or Path(name).name == Path(cover_href).name:
+                        data = z.read(name)
+                        return data, Path(name).suffix.lower(), len(data)
+
+            # 2. Search for common cover/title filenames in archive
+            image_extensions = ('.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp')
+            for name in z.namelist():
+                lower = name.lower()
+                if any(k in lower for k in ('cover', 'titlepage', 'title_page', 'title.')) and any(lower.endswith(ext) for ext in image_extensions):
+                    data = z.read(name)
+                    return data, Path(name).suffix.lower(), len(data)
+
+            # 3. Fallback to first image in archive
+            for name in z.namelist():
+                lower = name.lower()
+                if any(lower.endswith(ext) for ext in image_extensions):
+                    data = z.read(name)
+                    return data, Path(name).suffix.lower(), len(data)
+    except Exception:
+        pass
+    return None, '', 0

@@ -252,6 +252,98 @@
                 </div>
             </div>
 
+            <!-- Grayscale Cover with Contrast Adjustment Card -->
+            <div class="cover-adjust-card" id="cover-adjust-card" style="display: none;">
+                <div class="cover-adjust-header">
+                    <div class="cover-adjust-title-group">
+                        <div class="cover-adjust-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                        </div>
+                        <div class="cover-adjust-info">
+                            <h3>Grayscale Cover with Contrast Adjustment</h3>
+                            <p class="cover-adjust-subtitle">Convert cover to B&amp;W with adjustable levels and live preview</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="opt-cover-adjust-toggle" checked>
+                        <span class="toggle-track"></span>
+                    </label>
+                </div>
+
+                <div class="cover-adjust-body" id="cover-adjust-body">
+                    <div class="cover-adjust-controls">
+                        <div class="levels-header">
+                            <span class="levels-label">Levels</span>
+                            <button type="button" class="btn-reset-all" id="btn-reset-levels">
+                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                                Reset All
+                            </button>
+                        </div>
+
+                        <!-- Blacks slider -->
+                        <div class="level-slider-row">
+                            <div class="level-slider-header">
+                                <span class="level-name">Blacks (lows)</span>
+                                <div class="level-val-group">
+                                    <span class="level-val" id="val-blacks">0</span>
+                                    <button type="button" class="btn-reset-single" onclick="resetLevel('blacks', 0)" title="Reset to 0">&#x21ba;</button>
+                                </div>
+                            </div>
+                            <input type="range" id="slider-blacks" min="0" max="100" value="0" step="1">
+                        </div>
+
+                        <!-- Midtones slider -->
+                        <div class="level-slider-row">
+                            <div class="level-slider-header">
+                                <span class="level-name">Midtones (gamma)</span>
+                                <div class="level-val-group">
+                                    <span class="level-val" id="val-midtones">128</span>
+                                    <button type="button" class="btn-reset-single" onclick="resetLevel('midtones', 128)" title="Reset to 128">&#x21ba;</button>
+                                </div>
+                            </div>
+                            <input type="range" id="slider-midtones" min="50" max="200" value="128" step="1">
+                        </div>
+
+                        <!-- Whites slider -->
+                        <div class="level-slider-row">
+                            <div class="level-slider-header">
+                                <span class="level-name">Whites (highs)</span>
+                                <div class="level-val-group">
+                                    <span class="level-val" id="val-whites">255</span>
+                                    <button type="button" class="btn-reset-single" onclick="resetLevel('whites', 255)" title="Reset to 255">&#x21ba;</button>
+                                </div>
+                            </div>
+                            <input type="range" id="slider-whites" min="150" max="255" value="255" step="1">
+                        </div>
+
+                        <div class="levels-callout">
+                            <div class="callout-icon">&#x24d8;</div>
+                            <div class="callout-text">
+                                Adjust these to control how the cover appears on your e-ink display. Blacks clip shadows below the black-point; whites clip highlights above the white-point; midtones apply a gamma curve to the midrange.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cover-preview-column">
+                        <div class="cover-preview-box">
+                            <div class="cover-preview-inner" id="cover-preview-inner">
+                                <img id="cover-preview-img" alt="Cover Preview" src="">
+                                <div class="cover-loading-overlay" id="cover-loading-overlay" style="display: none;">
+                                    <div class="cover-spinner"></div>
+                                </div>
+                            </div>
+                            <div class="cover-stats-caption" id="cover-stats-caption">
+                                Original: <span id="cover-orig-kb">0 KB</span> &rarr; Grayscale: <span id="cover-proc-kb">0 KB</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Text Removal Card (similar to xteink.stvns.co) -->
             <div class="text-removal-card">
                 <div class="text-removal-header">

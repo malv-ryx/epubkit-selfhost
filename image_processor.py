@@ -65,6 +65,9 @@ class ImageOptions:
     grayscale: bool = True
     contrast_boost: bool = True
     contrast_factor: float = 1.5  # Higher default for low-bit-depth displays
+    black_point: int = 0
+    white_point: int = 255
+    gamma: float = 1.0
     quality: int = 70
     max_width: int = X4_WIDTH
     max_height: int = X4_HEIGHT
@@ -144,6 +147,40 @@ def _quantize_to_levels(img: Image.Image, levels: list[int]) -> Image.Image:
                              palette=palette_img,
                              dither=Image.Dither.FLOYDSTEINBERG)
     return quantized.convert('L')
+
+
+def _apply_levels(img: Image.Image, black_point: int = 0, white_point: int = 255, gamma: float = 1.0) -> Image.Image:
+    """
+    Apply custom levels adjustment (Blacks/Midtones/Whites) to an 8-bit grayscale image.
+    Blacks clips shadows below black_point; Whites clips highlights above white_point;
+    gamma controls midtones curve.
+    """
+    if black_point <= 0 and white_point >= 255 and (gamma == 1.0 or gamma == 128):
+        return img
+
+    if gamma == 128:
+        gamma_val = 1.0
+    elif isinstance(gamma, (int, float)) and gamma > 5:
+        gamma_val = gamma / 128.0
+    else:
+        gamma_val = float(gamma)
+
+    lut = []
+    diff = max(1, white_point - black_point)
+    for i in range(256):
+        if i <= black_point:
+            val = 0.0
+        elif i >= white_point:
+            val = 1.0
+        else:
+            val = (i - black_point) / diff
+
+        if gamma_val != 1.0 and val > 0:
+            val = val ** (1.0 / max(0.1, gamma_val))
+
+        lut.append(int(min(255, max(0, round(val * 255)))))
+
+    return img.point(lut)
 
 
 def _handle_transparency(img: Image.Image) -> Image.Image:
@@ -262,6 +299,11 @@ def process_image(image_bytes: bytes, filename: str, options: ImageOptions = Non
         # Convert to grayscale
         if options.grayscale:
             current_img = current_img.convert('L')
+
+            # Levels adjustment (Blacks/Midtones/Whites)
+            if options.black_point > 0 or options.white_point < 255 or (options.gamma != 1.0 and options.gamma != 128):
+                current_img = _apply_levels(current_img, options.black_point, options.white_point, options.gamma)
+                details_parts.append(f"levels [{options.black_point}, {options.gamma}, {options.white_point}]")
 
             # Contrast enhancement (before quantization for best results)
             if options.contrast_boost:
