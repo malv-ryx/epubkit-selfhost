@@ -472,22 +472,24 @@ function updateCoverPreview() {
 
     const url = `/cover-preview/${activePreviewTaskId}?black_point=${blacks}&white_point=${whites}&gamma=${midtones}&contrast=${contrast}&grayscale=${isGrayscale}&t=${Date.now()}`;
 
-    const tempImg = new Image();
-    tempImg.onload = function() {
-        if (coverPreviewImg) coverPreviewImg.src = url;
-        if (coverLoadingOverlay) coverLoadingOverlay.style.display = 'none';
-
-        fetch(url, { method: 'HEAD' }).then(res => {
+    fetch(url)
+        .then(async res => {
+            if (!res.ok) throw new Error('Preview failed');
             const orig = res.headers.get('X-Original-Size');
             const proc = res.headers.get('X-Processed-Size');
             if (orig && coverOrigKb) coverOrigKb.textContent = formatBytes(parseInt(orig));
             if (proc && coverProcKb) coverProcKb.textContent = formatBytes(parseInt(proc));
-        }).catch(() => {});
-    };
-    tempImg.onerror = function() {
-        if (coverLoadingOverlay) coverLoadingOverlay.style.display = 'none';
-    };
-    tempImg.src = url;
+
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            if (coverPreviewImg) {
+                coverPreviewImg.src = objectUrl;
+            }
+            if (coverLoadingOverlay) coverLoadingOverlay.style.display = 'none';
+        })
+        .catch(() => {
+            if (coverLoadingOverlay) coverLoadingOverlay.style.display = 'none';
+        });
 }
 
 function queueCoverPreviewUpdate() {
