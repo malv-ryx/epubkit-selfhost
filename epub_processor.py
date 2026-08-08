@@ -54,6 +54,7 @@ class ProcessingOptions:
     normalize_quotes: bool = True
     unwrap_svg: bool = True
     generate_ncx: bool = True
+    custom_patterns: list = field(default_factory=list)
     # Metadata edits (applied if non-empty)
     metadata_edits: dict = field(default_factory=dict)
 
@@ -303,7 +304,10 @@ def process_epub(input_path: str, output_path: str,
 
         # Step 11: Single-pass XHTML repair, attribute stripping, whitespace normalization, and text cleanup (70-75%)
         _progress(70, "Processing XHTML content...")
-        text_opts = TextCleanOptions(normalize_quotes=options.normalize_quotes) if options.text_cleanup else None
+        text_opts = TextCleanOptions(
+            normalize_quotes=options.normalize_quotes,
+            custom_patterns=options.custom_patterns or []
+        ) if (options.text_cleanup or options.custom_patterns) else None
         aggregate_text_report = TextCleanReport()
 
         all_classes = set()

@@ -383,7 +383,7 @@ def process_xhtml_single_pass(
     chapter page breaks, text cleanup, and SVG image unwrapping in a single DOM pass.
     Returns (cleaned_bytes, attrs_stripped_count, ws_cleaned_count, text_report, svg_unwrapped_count).
     """
-    from text_cleaner import clean_text_content, TextCleanOptions, TextCleanReport, SKIP_TAGS, _get_local_tag, _fix_whitespace, _fix_ocr_artifacts, _fix_mojibake, _fix_punctuation
+    from text_cleaner import clean_text_content, TextCleanOptions, TextCleanReport, SKIP_TAGS, _get_local_tag, _fix_whitespace, _fix_ocr_artifacts, _fix_mojibake, _fix_punctuation, compile_custom_patterns, _apply_custom_patterns
     import unicodedata
 
     text_report = TextCleanReport()
@@ -393,6 +393,8 @@ def process_xhtml_single_pass(
 
     if not xhtml_bytes:
         return xhtml_bytes, 0, 0, text_report, 0
+
+    compiled_pats = compile_custom_patterns(text_options.custom_patterns) if (text_options and text_options.custom_patterns) else []
 
     # Step 1: Parse AST once (with recovery fallback)
     try:
@@ -411,6 +413,11 @@ def process_xhtml_single_pass(
     def _process_text(text: str) -> str:
         if not text or not text_options:
             return text
+
+        if compiled_pats:
+            text, n = _apply_custom_patterns(text, compiled_pats)
+            text_report.custom_patterns_removed += n
+
         if text_options.fix_whitespace:
             text, n = _fix_whitespace(text)
             text_report.double_spaces_fixed += n

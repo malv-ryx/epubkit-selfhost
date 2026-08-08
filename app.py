@@ -164,6 +164,7 @@ async def process_sse(
     text_cleanup: bool = True,
     unwrap_svg: bool = True,
     generate_ncx: bool = True,
+    custom_patterns: str = "",
     edit_title: str = "",
     edit_author: str = "",
 ):
@@ -178,6 +179,17 @@ async def process_sse(
     if device not in DEVICE_PROFILES:
         allowed = ", ".join(f"'{d}'" for d in DEVICE_PROFILES)
         raise HTTPException(status_code=400, detail=f"Unknown device (expected {allowed})")
+
+    # Parse custom removal patterns
+    parsed_patterns = []
+    if custom_patterns:
+        try:
+            import json
+            parsed_patterns = json.loads(custom_patterns)
+            if isinstance(parsed_patterns, str):
+                parsed_patterns = [parsed_patterns]
+        except Exception:
+            parsed_patterns = [p.strip() for p in custom_patterns.split('\n') if p.strip()]
 
     input_path = task["file_path"]
     out_dir = OUTPUT_DIR / task_id
@@ -197,6 +209,7 @@ async def process_sse(
         text_cleanup=text_cleanup,
         unwrap_svg=unwrap_svg,
         generate_ncx=generate_ncx,
+        custom_patterns=parsed_patterns,
     )
 
     if edit_title or edit_author:

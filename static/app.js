@@ -406,7 +406,56 @@ function getOptions() {
         text_cleanup: document.getElementById('opt-textcleanup').checked,
         unwrap_svg: document.getElementById('opt-unwrapsvg') ? document.getElementById('opt-unwrapsvg').checked : true,
         generate_ncx: document.getElementById('opt-ncx') ? document.getElementById('opt-ncx').checked : true,
+        custom_patterns: getCustomPatterns(),
     };
+}
+
+// ==================== Text Removal Patterns ====================
+
+const patternList = document.getElementById('pattern-list');
+const patternEmpty = document.getElementById('pattern-empty');
+const addPatternBtn = document.getElementById('add-pattern-btn');
+
+if (addPatternBtn) {
+    addPatternBtn.addEventListener('click', () => addPatternRow());
+}
+
+function addPatternRow(initialVal = '') {
+    if (patternEmpty) patternEmpty.style.display = 'none';
+
+    const row = document.createElement('div');
+    row.className = 'pattern-row';
+    row.innerHTML = `
+        <input type="text" class="pattern-input" placeholder="e.g. ^Review this book on Amazon.* or custom text" value="${escapeHtml(initialVal)}">
+        <button type="button" class="pattern-btn-remove" onclick="removePatternRow(this)" title="Remove pattern">&times;</button>
+    `;
+    patternList.appendChild(row);
+    const input = row.querySelector('input');
+    input.focus();
+}
+
+function removePatternRow(btn) {
+    const row = btn.closest('.pattern-row');
+    if (row) {
+        row.remove();
+        if (patternList.querySelectorAll('.pattern-row').length === 0) {
+            if (patternEmpty) patternEmpty.style.display = 'block';
+        }
+    }
+}
+
+function addPatternPreset(presetStr) {
+    addPatternRow(presetStr);
+}
+
+function getCustomPatterns() {
+    const rows = patternList ? patternList.querySelectorAll('.pattern-input') : [];
+    const patterns = [];
+    rows.forEach(input => {
+        const val = input.value.trim();
+        if (val) patterns.push(val);
+    });
+    return patterns;
 }
 
 function processFile(taskId, options, editTitle, editAuthor) {
@@ -424,6 +473,7 @@ function processFile(taskId, options, editTitle, editAuthor) {
             text_cleanup: options.text_cleanup,
             unwrap_svg: options.unwrap_svg,
             generate_ncx: options.generate_ncx,
+            custom_patterns: JSON.stringify(options.custom_patterns || []),
             edit_title: editTitle,
             edit_author: editAuthor,
         });

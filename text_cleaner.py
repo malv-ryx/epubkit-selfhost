@@ -18,10 +18,13 @@ class TextCleanReport:
     encoding_issues_fixed: int = 0
     unicode_normalized: int = 0
     punctuation_fixed: int = 0
+    custom_patterns_removed: int = 0
     total_fixes: int = 0
 
     def summary(self) -> str:
         parts = []
+        if self.custom_patterns_removed:
+            parts.append(f"{self.custom_patterns_removed} custom text removals")
         if self.double_spaces_fixed:
             parts.append(f"{self.double_spaces_fixed} extra spaces")
         if self.ocr_ligatures_fixed:
@@ -44,6 +47,7 @@ class TextCleanReport:
         self.encoding_issues_fixed += other.encoding_issues_fixed
         self.unicode_normalized += other.unicode_normalized
         self.punctuation_fixed += other.punctuation_fixed
+        self.custom_patterns_removed += other.custom_patterns_removed
         self.total_fixes += other.total_fixes
 
 
@@ -55,6 +59,7 @@ class TextCleanOptions:
     fix_encoding: bool = True
     fix_punctuation: bool = True
     normalize_unicode: bool = True
+    custom_patterns: list = field(default_factory=list)
 
 
 # Common OCR ligature/artifact mappings
@@ -185,6 +190,35 @@ def _fix_punctuation(text: str) -> tuple[str, int]:
     return text, count
 
 
+def compile_custom_patterns(patterns: list) -> list:
+    """Compile custom string/regex patterns for fast multi-file application."""
+    compiled = []
+    for pat in patterns:
+        if not pat or not isinstance(pat, str) or not pat.strip():
+            continue
+        pat_str = pat.strip()
+        try:
+            compiled.append(re.compile(pat_str, re.IGNORECASE))
+        except re.error:
+            compiled.append(pat_str)
+    return compiled
+
+
+def _apply_custom_patterns(text: str, patterns: list) -> tuple[str, int]:
+    """Remove user-specified custom strings or regex patterns from text."""
+    count = 0
+    for pat in patterns:
+        if isinstance(pat, str):
+            if pat in text:
+                n = text.count(pat)
+                text = text.replace(pat, '')
+                count += n
+        else:
+            text, n = pat.subn('', text)
+            count += n
+    return text, count
+
+
 def _get_local_tag(tag: str) -> str:
     """Get local tag name, stripping namespace."""
     if '}' in tag:
@@ -203,6 +237,7 @@ def clean_text_content(xhtml_bytes: bytes, options: TextCleanOptions = None) -> 
         options = TextCleanOptions()
 
     report = TextCleanReport()
+    compiled_pats = compile_custom_patterns(options.custom_patterns) if options.custom_patterns else []
 
     try:
         tree = etree.fromstring(xhtml_bytes)
@@ -215,7 +250,12 @@ def clean_text_content(xhtml_bytes: bytes, options: TextCleanOptions = None) -> 
     def _process_text(text: str) -> str:
         """Apply all enabled text fixes to a string."""
         nonlocal report
-        original = text
+        if not text:
+            return text
+
+        if compiled_pats:
+            text, n = _apply_custom_patterns(text, compiled_pats)
+            report.custom_patterns_removed += n
 
         if options.fix_whitespace:
             text, n = _fix_whitespace(text)
