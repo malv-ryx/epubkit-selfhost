@@ -507,6 +507,7 @@ function processFile(taskId, options, editTitle, editAuthor) {
 // ==================== Results ====================
 
 function showResults(completed) {
+    const options = getOptions();
     resultsSection.hidden = false;
     const resultsItems = document.getElementById('results-items');
     resultsItems.innerHTML = '';
