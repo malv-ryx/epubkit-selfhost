@@ -363,27 +363,40 @@ def _sanitize_filename(name: str) -> str:
 def extract_cover_bytes(epub_path: str) -> tuple[Optional[bytes], str, int]:
     """Extract raw cover image bytes from EPUB archive for live preview."""
     import zipfile
+    image_extensions = ('.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp')
     try:
         with zipfile.ZipFile(epub_path, 'r') as z:
-            meta = extract_epub_metadata(epub_path)
-            cover_href = meta.get('cover_href')
+            cover_href = ''
+            for opf_name in z.namelist():
+                if opf_name.endswith('.opf'):
+                    try:
+                        opf_tree = etree.ElementTree(etree.fromstring(z.read(opf_name)))
+                        meta = extract_metadata(opf_tree)
+                        cover_href = meta.get('cover_href', '')
+                        if cover_href:
+                            opf_dir = str(Path(opf_name).parent).replace('\\', '/')
+                            if opf_dir and opf_dir != '.':
+                                candidate1 = f"{opf_dir}/{cover_href}".replace('//', '/')
+                                if candidate1 in z.namelist():
+                                    data = z.read(candidate1)
+                                    return data, Path(candidate1).suffix.lower(), len(data)
+                            break
+                    except Exception:
+                        pass
 
-            # 1. Match declared cover_href
             if cover_href:
+                cover_base = Path(cover_href).name
                 for name in z.namelist():
-                    if name.endswith(cover_href) or cover_href.endswith(name) or Path(name).name == Path(cover_href).name:
+                    if name.endswith(cover_href) or Path(name).name == cover_base:
                         data = z.read(name)
                         return data, Path(name).suffix.lower(), len(data)
 
-            # 2. Search for common cover/title filenames in archive
-            image_extensions = ('.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp')
             for name in z.namelist():
                 lower = name.lower()
                 if any(k in lower for k in ('cover', 'titlepage', 'title_page', 'title.')) and any(lower.endswith(ext) for ext in image_extensions):
                     data = z.read(name)
                     return data, Path(name).suffix.lower(), len(data)
 
-            # 3. Fallback to first image in archive
             for name in z.namelist():
                 lower = name.lower()
                 if any(lower.endswith(ext) for ext in image_extensions):
