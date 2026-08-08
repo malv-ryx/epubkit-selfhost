@@ -1099,6 +1099,34 @@ h2 {
     background: var(--surface);
 }
 
+.secondary-drawer summary {
+    border-top: 1px dashed var(--border);
+}
+
+.pipeline-log-content {
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text);
+    gap: 8px;
+}
+
+.log-tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 8px;
+    letter-spacing: -0.1px;
+}
+
+.tag-dom { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.tag-css { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.tag-text { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+.tag-img { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.tag-nav { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+
 .log-drawer-content .log-num {
     color: var(--accent);
     font-weight: 600;

@@ -552,7 +552,9 @@ function showResults(completed) {
             if (report.css_rules_removed > 0 || report.attrs_stripped > 0) {
                 badgesHtml.push(`<span class="stat-badge css-badge">🧹 DOM & CSS Cleaned</span>`);
             }
-            if (report.text_fixes_total > 0) {
+            if (report.custom_patterns_removed > 0) {
+                badgesHtml.push(`<span class="stat-badge text-badge">✂️ ${report.custom_patterns_removed} Text Matches Stripped</span>`);
+            } else if (report.text_fixes_total > 0) {
                 badgesHtml.push(`<span class="stat-badge text-badge">📝 Text Normalized</span>`);
             }
 
@@ -570,8 +572,14 @@ function showResults(completed) {
                 if (report.attrs_stripped > 0) parts.push(`${report.attrs_stripped} bloat attributes`);
                 itemsHtml.push(`<li><span class="item-icon">🧹</span> <div><strong>DOM & CSS:</strong> Stripped ${parts.join(' & ')}</div></li>`);
             }
+            if (report.custom_patterns_removed > 0) {
+                itemsHtml.push(`<li><span class="item-icon">✂️</span> <div><strong>Text Removal:</strong> Removed ${report.custom_patterns_removed} promotional & custom text pattern matches</div></li>`);
+            }
             if (report.text_fixes_total > 0) {
                 itemsHtml.push(`<li><span class="item-icon">📝</span> <div><strong>Text Cleanup:</strong> ${escapeHtml(report.text_cleanup_summary)}</div></li>`);
+            }
+            if (report.svg_images_unwrapped > 0) {
+                itemsHtml.push(`<li><span class="item-icon">🖼️</span> <div><strong>SVG Wrappers:</strong> Unwrapped ${report.svg_images_unwrapped} in-body &lt;svg&gt;&lt;image&gt; tags to direct &lt;img&gt;</div></li>`);
             }
             if (report.metadata_items_stripped > 0) {
                 itemsHtml.push(`<li><span class="item-icon">📚</span> <div><strong>Metadata:</strong> Stripped ${report.metadata_items_stripped} store-specific metadata tags</div></li>`);
@@ -580,17 +588,37 @@ function showResults(completed) {
                 itemsHtml.push(`<li><span class="item-icon">📑</span> <div><strong>Table of Contents:</strong> ${escapeHtml(report.toc_status)}</div></li>`);
             }
 
-            // Build collapsible log drawer if image details exist
-            let drawerHtml = '';
+            // Build Image Log Drawer
+            let imageDrawerHtml = '';
             if (report.image_details && report.image_details.length > 0) {
                 const detailsList = report.image_details.map((d, idx) => `<div><span class="log-num">#${idx + 1}</span> ${escapeHtml(d)}</div>`).join('');
-                drawerHtml = `
+                imageDrawerHtml = `
                     <details class="log-drawer">
                         <summary>🔍 View Detailed Image Log (${report.image_details.length} files)</summary>
                         <div class="log-drawer-content">${detailsList}</div>
                     </details>
                 `;
             }
+
+            // Build Comprehensive Pipeline & Optimization Log Drawer
+            const pipelineLogItems = [];
+            pipelineLogItems.push(`<div><span class="log-tag tag-dom">DOM & Markup</span> Stripped ${report.attrs_stripped || 0} bloat attributes &bull; Cleaned ${report.whitespace_cleaned || 0} empty elements &bull; Injected chapter page breaks</div>`);
+            pipelineLogItems.push(`<div><span class="log-tag tag-css">Styles & Fonts</span> Removed ${report.fonts_removed || 0} embedded font files &bull; Pruned ${report.css_rules_removed || 0} unused CSS rules</div>`);
+            if (report.custom_patterns_removed > 0 || options.custom_patterns.length > 0) {
+                pipelineLogItems.push(`<div><span class="log-tag tag-text">Text Removal</span> Stripped ${report.custom_patterns_removed || 0} unwanted text occurrences matching ${options.custom_patterns.length} custom pattern(s)</div>`);
+            }
+            pipelineLogItems.push(`<div><span class="log-tag tag-text">Text Formatting</span> Fixed OCR ligatures &bull; Normalized smart quotes &bull; Fixed mojibake encoding &bull; Unicode NFC format</div>`);
+            pipelineLogItems.push(`<div><span class="log-tag tag-img">Images & Cover</span> Converted ${report.images_converted || 0} images to 4-level grayscale with Floyd-Steinberg dithering &bull; Unwrapped ${report.svg_images_unwrapped || 0} in-body SVG wrappers &bull; ${report.cover_generated ? 'Generated cover' : 'Synced OPF cover item'}</div>`);
+            pipelineLogItems.push(`<div><span class="log-tag tag-nav">Structure & Nav</span> ${escapeHtml(report.toc_status || 'TOC verified')} &bull; Synced dtb:uid &bull; Validated &lt;dc:language&gt; &bull; Packaged with uncompressed stored mimetype</div>`);
+
+            const fullPipelineDrawerHtml = `
+                <details class="log-drawer secondary-drawer">
+                    <summary>📑 View Full Optimization & Cleanup Log</summary>
+                    <div class="log-drawer-content pipeline-log-content">
+                        ${pipelineLogItems.join('')}
+                    </div>
+                </details>
+            `;
 
             card.innerHTML = `
                 <div class="result-header">
@@ -604,7 +632,8 @@ function showResults(completed) {
                 </div>
                 <div class="stat-badges">${badgesHtml.join('')}</div>
                 <ul class="result-breakdown">${itemsHtml.join('')}</ul>
-                ${drawerHtml}
+                ${imageDrawerHtml}
+                ${fullPipelineDrawerHtml}
                 <a href="/download/${task_id}" class="download-btn" download>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>

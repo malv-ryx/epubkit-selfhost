@@ -80,6 +80,7 @@ class ProcessingReport:
     metadata_items_stripped: int = 0
     whitespace_cleaned: int = 0
     attrs_stripped: int = 0
+    custom_patterns_removed: int = 0
     text_fixes_total: int = 0
     text_cleanup_summary: str = ''
     os_artifacts_removed: int = 0
@@ -344,7 +345,8 @@ def process_epub(input_path: str, output_path: str,
                     all_ids.update(ids)
                     all_elements.update(elements)
 
-        if options.text_cleanup:
+        report.custom_patterns_removed = aggregate_text_report.custom_patterns_removed
+        if options.text_cleanup or options.custom_patterns:
             report.text_fixes_total = aggregate_text_report.total_fixes
             report.text_cleanup_summary = aggregate_text_report.summary()
 
