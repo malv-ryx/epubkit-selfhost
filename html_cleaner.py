@@ -376,11 +376,12 @@ def process_xhtml_single_pass(
     normalize_ws: bool = True,
     add_breaks: bool = True,
     text_options: Optional['TextCleanOptions'] = None,
-) -> tuple[bytes, int, int, 'TextCleanReport']:
+    unwrap_svg: bool = True
+) -> tuple[bytes, int, int, 'TextCleanReport', int]:
     """
     Perform HTML repair, attribute stripping, whitespace normalization,
-    chapter page breaks, and text cleanup in a single DOM pass.
-    Returns (cleaned_bytes, attrs_stripped_count, ws_cleaned_count, text_report).
+    chapter page breaks, text cleanup, and SVG image unwrapping in a single DOM pass.
+    Returns (cleaned_bytes, attrs_stripped_count, ws_cleaned_count, text_report, svg_unwrapped_count).
     """
     from text_cleaner import clean_text_content, TextCleanOptions, TextCleanReport, SKIP_TAGS, _get_local_tag, _fix_whitespace, _fix_ocr_artifacts, _fix_mojibake, _fix_punctuation
     import unicodedata
@@ -388,9 +389,10 @@ def process_xhtml_single_pass(
     text_report = TextCleanReport()
     attrs_stripped = 0
     ws_cleaned = 0
+    svg_unwrapped = 0
 
     if not xhtml_bytes:
-        return xhtml_bytes, 0, 0, text_report
+        return xhtml_bytes, 0, 0, text_report, 0
 
     # Step 1: Parse AST once (with recovery fallback)
     try:
@@ -400,10 +402,10 @@ def process_xhtml_single_pass(
         try:
             tree = etree.fromstring(xhtml_bytes, parser)
         except Exception:
-            return xhtml_bytes, 0, 0, text_report
+            return xhtml_bytes, 0, 0, text_report, 0
 
     if tree is None:
-        return xhtml_bytes, 0, 0, text_report
+        return xhtml_bytes, 0, 0, text_report, 0
 
     # Helper for text cleanup in single pass
     def _process_text(text: str) -> str:
@@ -431,6 +433,7 @@ def process_xhtml_single_pass(
 
     # Step 2: Walk elements in a single pass
     empty_streak = []
+    svgs_to_unwrap = []
 
     for el in tree.iter():
         if not isinstance(el.tag, str):
@@ -438,7 +441,24 @@ def process_xhtml_single_pass(
 
         tag_local = el.tag.split('}')[-1] if '}' in el.tag else el.tag
 
-        # 2a. Attribute stripping
+        # 2a. Detect SVG image wrappers for unwrapping
+        if unwrap_svg and tag_local.lower() == 'svg':
+            # Check for <image> inside svg
+            img_href = None
+            for child in el.iter():
+                c_tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+                if c_tag.lower() == 'image':
+                    img_href = (
+                        child.get('{http://www.w3.org/1999/xlink}href') or
+                        child.get('href') or
+                        child.get('src') or ''
+                    )
+                    if img_href:
+                        break
+            if img_href:
+                svgs_to_unwrap.append((el, img_href))
+
+        # 2b. Attribute stripping
         if strip_attrs:
             attrs_to_remove = []
             for attr in el.attrib:
@@ -458,12 +478,13 @@ def process_xhtml_single_pass(
                                            'translate', 'inputmode', 'enterkeyhint',
                                            'hidden', 'inert', 'popover'):
                     attrs_to_remove.append(attr)
+                    continue
 
             for attr in attrs_to_remove:
                 del el.attrib[attr]
                 attrs_stripped += 1
 
-        # 2b. Whitespace empty paragraph tracking
+        # 2c. Whitespace empty paragraph tracking
         if normalize_ws:
             if tag_local in ('p', 'div'):
                 text_content = (el.text or '').strip()
@@ -506,7 +527,23 @@ def process_xhtml_single_pass(
                 parent.remove(empty_el)
                 ws_cleaned += 1
 
-    # Step 3: Add chapter page breaks if missing
+    # Step 3: Unwrap collected SVG elements into direct <img> tags
+    for svg_el, img_src in svgs_to_unwrap:
+        parent = svg_el.getparent()
+        if parent is not None:
+            ns = tree.tag.split('}')[0] + '}' if '}' in tree.tag else ''
+            img_node = etree.Element(f'{ns}img')
+            img_node.set('src', img_src)
+            img_node.set('alt', svg_el.get('alt') or '')
+            if svg_el.get('class'):
+                img_node.set('class', svg_el.get('class'))
+            if svg_el.get('id'):
+                img_node.set('id', svg_el.get('id'))
+            img_node.tail = svg_el.tail
+            parent.replace(svg_el, img_node)
+            svg_unwrapped += 1
+
+    # Step 4: Add chapter page breaks if missing
     if add_breaks:
         head = tree.find('.//{http://www.w3.org/1999/xhtml}head')
         if head is None:
@@ -528,6 +565,6 @@ def process_xhtml_single_pass(
         text_report.unicode_normalized
     )
 
-    # Step 4: Single serialization directly to utf-8 bytes
+    # Step 5: Single serialization directly to utf-8 bytes
     result = etree.tostring(tree, encoding='utf-8')
-    return result, attrs_stripped, ws_cleaned, text_report
+    return result, attrs_stripped, ws_cleaned, text_report, svg_unwrapped

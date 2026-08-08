@@ -273,6 +273,43 @@ def strip_store_metadata(opf_tree: etree._ElementTree) -> int:
     return removed
 
 
+def sync_cover_metadata(opf_tree: etree._ElementTree, cover_id: str) -> None:
+    """Ensure OPF <metadata> has <meta name="cover" content="..."/> matching cover item."""
+    if not cover_id:
+        return
+    root = opf_tree.getroot()
+    metadata_el = _find_metadata(root)
+    if metadata_el is None:
+        return
+
+    # Check existing <meta name="cover">
+    cover_meta = None
+    for meta in _iter_meta(root):
+        if meta.get('name') == 'cover':
+            cover_meta = meta
+            break
+
+    if cover_meta is not None:
+        cover_meta.set('content', cover_id)
+    else:
+        new_meta = etree.SubElement(metadata_el, 'meta')
+        new_meta.set('name', 'cover')
+        new_meta.set('content', cover_id)
+
+
+def ensure_language_metadata(opf_tree: etree._ElementTree, default_lang: str = 'en') -> None:
+    """Ensure OPF <metadata> has a valid <dc:language> element."""
+    root = opf_tree.getroot()
+    nsmap = _build_nsmap(root)
+    lang_el = _find_dc(root, 'language', nsmap)
+    if lang_el is None or not lang_el.text or not lang_el.text.strip():
+        metadata_el = _find_metadata(root)
+        if metadata_el is not None:
+            ns_dc = 'http://purl.org/dc/elements/1.1/'
+            new_lang = etree.SubElement(metadata_el, f'{{{ns_dc}}}language')
+            new_lang.text = default_lang
+
+
 def format_filename(title: str, author: str) -> str:
     """
     Create a sanitized filename in 'Author - Title.epub' format.

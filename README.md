@@ -99,7 +99,7 @@ docker compose up -d --build
 | **5** | **Apply Edits** | Overwrites title and author metadata if edited directly in the web UI. |
 | **6** | **Catalog Content** | Maps all XHTML, CSS, image, and font files in the EPUB. |
 | **7** | **Process Images** | Single-pass resizing to target device screen (X4/X4 Pro: 480x800, X3: 528x792, max 1024x1024), 4-level hardware grayscale quantization with Floyd-Steinberg dithering, autocontrast histogram stretching, and contrast boost. Light Novel mode rotates/splits landscape double-page spreads. |
-| **8** | **Fix SVG Covers** | Unwraps SVG-wrapped cover images (common in Gutenberg & store EPUBs). |
+| **8** | **Unwrap SVG Images** | Unwraps SVG-wrapped cover images and in-body `<svg><image>` illustrations so diagrams never appear blank. |
 | **9** | **Generate Cover** | Creates a clean title/author cover image if none exists. |
 | **10** | **Update References** | Rewrites internal hrefs and srcs to match processed baseline JPEGs. |
 | **11** | **Repair HTML & Strip Attributes** | Single-pass DOM traversal with `lxml`; strips bloat attributes (`data-*`, `aria-*`, `role`, `tabindex`) to save RAM. |
@@ -107,8 +107,8 @@ docker compose up -d --build
 | **13** | **Remove Embedded Fonts** | Strips `@font-face` rules, deletes font files (`.ttf`, `.otf`, `.woff`), and cleans OPF manifests. |
 | **14** | **Normalize Whitespace** | Removes excessive empty divs/paragraphs, adds `page-break-before` to chapter headings. |
 | **15** | **Text Cleanup** | Fast-path fix for double spaces, OCR ligatures (`fi`, `fl`, `ffi`), smart quotes, mojibake encoding errors, and Unicode NFC normalization. |
-| **16** | **Clean Metadata** | Removes store-specific bloat tags (Calibre, iBooks, Kindle, Amazon, Kobo). |
-| **17** | **Fix TOC** | Validates Table of Contents; generates one from headings if missing. |
+| **16** | **Clean Metadata** | Removes store-specific bloat tags (Calibre, iBooks, Kindle, Amazon, Kobo), syncs cover ID and `<dc:language>`. |
+| **17** | **EPUB3 Nav & TOC Fix** | Converts EPUB3 `nav.xhtml` hierarchy to `toc.ncx` for backward compatibility on low-RAM readers; syncs `dtb:uid`. |
 | **18** | **Clean OS Artifacts** | Removes `.DS_Store`, `Thumbs.db`, `__MACOSX`, and `desktop.ini`. |
 | **19** | **Repackage** | Rebuilds EPUB ZIP with correct mimetype entry and deflate compression. |
 | **20** | **Output Filename** | Generates a clean `Author - Title.epub` output file. |

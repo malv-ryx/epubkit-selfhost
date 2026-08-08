@@ -162,6 +162,8 @@ async def process_sse(
     generate_cover: bool = True,
     clean_metadata: bool = True,
     text_cleanup: bool = True,
+    unwrap_svg: bool = True,
+    generate_ncx: bool = True,
     edit_title: str = "",
     edit_author: str = "",
 ):
@@ -193,6 +195,8 @@ async def process_sse(
         generate_missing_cover=generate_cover,
         clean_metadata=clean_metadata,
         text_cleanup=text_cleanup,
+        unwrap_svg=unwrap_svg,
+        generate_ncx=generate_ncx,
     )
 
     if edit_title or edit_author:

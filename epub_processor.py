@@ -52,6 +52,8 @@ class ProcessingOptions:
     clean_metadata: bool = True
     text_cleanup: bool = True
     normalize_quotes: bool = True
+    unwrap_svg: bool = True
+    generate_ncx: bool = True
     # Metadata edits (applied if non-empty)
     metadata_edits: dict = field(default_factory=dict)
 
@@ -71,6 +73,8 @@ class ProcessingReport:
     fonts_removed: int = 0
     css_rules_removed: int = 0
     svg_covers_fixed: int = 0
+    svg_images_unwrapped: int = 0
+    ncx_generated: bool = False
     toc_status: str = ''
     metadata_items_stripped: int = 0
     whitespace_cleaned: int = 0
@@ -98,6 +102,9 @@ class ProcessingReport:
 
         if self.svg_covers_fixed > 0:
             parts.append(f"Fixed {self.svg_covers_fixed} SVG cover wrappers")
+
+        if self.svg_images_unwrapped > 0:
+            parts.append(f"Unwrapped {self.svg_images_unwrapped} in-body SVG images")
 
         if self.cover_generated:
             parts.append("Generated missing cover image")
@@ -308,16 +315,18 @@ def process_epub(input_path: str, output_path: str,
                 with open(xhtml_path, 'rb') as f:
                     html_bytes = f.read()
 
-                cleaned_bytes, stripped_cnt, ws_cnt, t_report = process_xhtml_single_pass(
+                cleaned_bytes, stripped_cnt, ws_cnt, t_report, svg_cnt = process_xhtml_single_pass(
                     html_bytes,
                     strip_attrs=True,
                     normalize_ws=True,
                     add_breaks=True,
                     text_options=text_opts,
+                    unwrap_svg=options.unwrap_svg,
                 )
 
                 report.attrs_stripped += stripped_cnt
                 report.whitespace_cleaned += ws_cnt
+                report.svg_images_unwrapped += svg_cnt
                 if t_report.total_fixes > 0:
                     aggregate_text_report.merge(t_report)
 

@@ -420,8 +420,16 @@ def fix_toc(epub_dir: str, opf_path: str) -> tuple[bool, str]:
             except Exception:
                 pass
 
-    # No valid TOC found - generate one
-    chapters = _extract_chapter_info(opf_dir, spine_hrefs)
+    # Extract primary dc:identifier for NCX uid sync
+    uid = 'urn:uuid:epubkit'
+    dc_id = root.find('.//{http://purl.org/dc/elements/1.1/}identifier')
+    if dc_id is None:
+        dc_id = root.find('.//identifier')
+    if dc_id is not None and dc_id.text and dc_id.text.strip():
+        uid = dc_id.text.strip()
+
+    # No valid TOC found - generate one from EPUB3 nav.xhtml or spine headings
+    chapters = _extract_chapter_info(opf_dir, spine_hrefs, root)
 
     if ncx_href:
         ncx_path = os.path.join(opf_dir, unquote(ncx_href))
@@ -429,7 +437,7 @@ def fix_toc(epub_dir: str, opf_path: str) -> tuple[bool, str]:
         ncx_path = os.path.join(opf_dir, 'toc.ncx')
         ncx_href = 'toc.ncx'
 
-    _generate_ncx(ncx_path, chapters, ncx_href)
+    _generate_ncx(ncx_path, chapters, ncx_href, uid=uid)
 
     # Ensure NCX is in manifest
     if ncx_id is None:
@@ -442,7 +450,7 @@ def fix_toc(epub_dir: str, opf_path: str) -> tuple[bool, str]:
         spine.set('toc', 'ncx')
         tree.write(opf_path, xml_declaration=True, encoding='utf-8', pretty_print=True)
 
-    return True, f"Generated TOC with {len(chapters)} entries"
+    return True, f"Generated TOC with {len(chapters)} entries (EPUB3/Spine sync)"
 
 
 def _check_ncx_references(nav_points, opf_dir: str, ncx_path: str) -> list:
@@ -467,8 +475,72 @@ def _fix_ncx_references(nav_points, opf_dir: str, ncx_path: str, spine_hrefs: li
     pass  # Complex matching logic - for now regeneration handles this
 
 
-def _extract_chapter_info(opf_dir: str, spine_hrefs: list) -> list[dict]:
-    """Extract chapter titles from spine XHTML files."""
+def _extract_chapters_from_epub3_nav(opf_dir: str, root: etree._Element) -> list[dict]:
+    """Extract hierarchical chapter titles and hrefs from an EPUB3 nav.xhtml document."""
+    manifest = _find_element(root, 'manifest')
+    if manifest is None:
+        return []
+
+    nav_href = None
+    for item in manifest:
+        if not _is_element(item):
+            continue
+        props = item.get('properties') or ''
+        href = item.get('href') or ''
+        media_type = (item.get('media-type') or '').lower()
+        if 'nav' in props or href.lower().endswith(('nav.xhtml', 'toc.xhtml', 'nav.html')):
+            if media_type in ('application/xhtml+xml', 'text/html'):
+                nav_href = unquote(href)
+                break
+
+    if not nav_href:
+        return []
+
+    nav_path = os.path.join(opf_dir, nav_href)
+    if not os.path.exists(nav_path):
+        return []
+
+    chapters = []
+    try:
+        tree = etree.parse(nav_path)
+        nav_root = tree.getroot()
+
+        # Locate <nav epub:type="toc"> or <nav id="toc"> or any <nav>
+        toc_nav = None
+        for nav in nav_root.iter(f'{{{NS_XHTML}}}nav', f'{{{NS_EPUB}}}nav', 'nav'):
+            etype = nav.get(f'{{{NS_EPUB}}}type') or nav.get('type') or nav.get('id') or ''
+            if 'toc' in etype.lower() or toc_nav is None:
+                toc_nav = nav
+                if 'toc' in etype.lower():
+                    break
+
+        if toc_nav is not None:
+            # Extract <a> links inside <li>
+            for a in toc_nav.iter(f'{{{NS_XHTML}}}a', 'a'):
+                href = a.get('href') or ''
+                title = ''.join(a.itertext()).strip()
+                if href and title:
+                    # Resolve relative to OPF directory
+                    nav_dir = str(Path(nav_href).parent)
+                    resolved_href = str(Path(nav_dir) / href).replace('\\', '/') if nav_dir != '.' else href
+                    chapters.append({
+                        'href': resolved_href,
+                        'title': title,
+                        'id': f'nav-{len(chapters) + 1}'
+                    })
+    except Exception:
+        pass
+
+    return chapters
+
+
+def _extract_chapter_info(opf_dir: str, spine_hrefs: list, root: etree._Element = None) -> list[dict]:
+    """Extract chapter titles from EPUB3 nav.xhtml or spine XHTML files."""
+    if root is not None:
+        nav_chapters = _extract_chapters_from_epub3_nav(opf_dir, root)
+        if nav_chapters:
+            return nav_chapters
+
     chapters = []
 
     for i, (idref, href) in enumerate(spine_hrefs):
@@ -478,20 +550,20 @@ def _extract_chapter_info(opf_dir: str, spine_hrefs: list) -> list[dict]:
         if os.path.exists(xhtml_path):
             try:
                 tree = etree.parse(xhtml_path)
-                root = tree.getroot()
+                xhtml_root = tree.getroot()
 
                 # Try <title> tag
-                title_el = root.find(f'.//{{{NS_XHTML}}}title')
+                title_el = xhtml_root.find(f'.//{{{NS_XHTML}}}title')
                 if title_el is None:
-                    title_el = root.find('.//title')
+                    title_el = xhtml_root.find('.//title')
                 if title_el is not None and title_el.text and title_el.text.strip():
                     title = title_el.text.strip()
                 else:
                     # Try first heading
                     for tag in ['h1', 'h2', 'h3']:
-                        h = root.find(f'.//{{{NS_XHTML}}}{tag}')
+                        h = xhtml_root.find(f'.//{{{NS_XHTML}}}{tag}')
                         if h is None:
-                            h = root.find(f'.//{tag}')
+                            h = xhtml_root.find(f'.//{tag}')
                         if h is not None:
                             text = ''.join(h.itertext()).strip()
                             if text:
@@ -509,15 +581,27 @@ def _extract_chapter_info(opf_dir: str, spine_hrefs: list) -> list[dict]:
     return chapters
 
 
-def _generate_ncx(ncx_path: str, chapters: list[dict], ncx_href: str) -> None:
-    """Generate an NCX file from chapter info."""
+def _generate_ncx(ncx_path: str, chapters: list[dict], ncx_href: str, uid: str = 'urn:uuid:epubkit') -> None:
+    """Generate an NCX file from chapter info with synchronized dtb:uid."""
     ncx = etree.Element(f'{{{NS_NCX}}}ncx', nsmap={None: NS_NCX})
     ncx.set('version', '2005-1')
 
     head = etree.SubElement(ncx, f'{{{NS_NCX}}}head')
-    meta = etree.SubElement(head, f'{{{NS_NCX}}}meta')
-    meta.set('name', 'dtb:depth')
-    meta.set('content', '1')
+    meta_uid = etree.SubElement(head, f'{{{NS_NCX}}}meta')
+    meta_uid.set('name', 'dtb:uid')
+    meta_uid.set('content', uid)
+
+    meta_depth = etree.SubElement(head, f'{{{NS_NCX}}}meta')
+    meta_depth.set('name', 'dtb:depth')
+    meta_depth.set('content', '1')
+
+    meta_total = etree.SubElement(head, f'{{{NS_NCX}}}meta')
+    meta_total.set('name', 'dtb:totalPageCount')
+    meta_total.set('content', '0')
+
+    meta_max = etree.SubElement(head, f'{{{NS_NCX}}}meta')
+    meta_max.set('name', 'dtb:maxPageNumber')
+    meta_max.set('content', '0')
 
     doc_title = etree.SubElement(ncx, f'{{{NS_NCX}}}docTitle')
     doc_text = etree.SubElement(doc_title, f'{{{NS_NCX}}}text')

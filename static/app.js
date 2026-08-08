@@ -282,6 +282,12 @@ function setOptions(opts) {
     document.getElementById('opt-metadata').checked = opts.metadata;
     document.getElementById('opt-textcleanup').checked = opts.textcleanup;
     document.getElementById('opt-lightnovel').checked = opts.lightnovel;
+    if (document.getElementById('opt-unwrapsvg')) {
+        document.getElementById('opt-unwrapsvg').checked = opts.unwrapsvg !== undefined ? opts.unwrapsvg : true;
+    }
+    if (document.getElementById('opt-ncx')) {
+        document.getElementById('opt-ncx').checked = opts.ncx !== undefined ? opts.ncx : true;
+    }
     setQuality(opts.quality);
 }
 
@@ -338,14 +344,16 @@ async function startProcessing() {
     // Create progress items
     const progressItems = document.getElementById('progress-items');
     progressItems.innerHTML = '';
-
     for (const file of validFiles) {
         const item = document.createElement('div');
         item.className = 'progress-item';
         item.id = `progress-${file.task_id}`;
         item.innerHTML = `
-            <div class="filename">${escapeHtml(file.filename)}</div>
-            <div class="progress-bar-container">
+            <div class="progress-header">
+                <span class="progress-title">${escapeHtml(file.metadata?.title || file.filename)}</span>
+                <span class="progress-percent" id="pct-${file.task_id}">0%</span>
+            </div>
+            <div class="progress-bar-bg">
                 <div class="progress-bar" id="bar-${file.task_id}"></div>
             </div>
             <div class="progress-message" id="msg-${file.task_id}">Waiting...</div>
@@ -396,6 +404,8 @@ function getOptions() {
         generate_cover: document.getElementById('opt-cover').checked,
         clean_metadata: document.getElementById('opt-metadata').checked,
         text_cleanup: document.getElementById('opt-textcleanup').checked,
+        unwrap_svg: document.getElementById('opt-unwrapsvg') ? document.getElementById('opt-unwrapsvg').checked : true,
+        generate_ncx: document.getElementById('opt-ncx') ? document.getElementById('opt-ncx').checked : true,
     };
 }
 
@@ -412,6 +422,8 @@ function processFile(taskId, options, editTitle, editAuthor) {
             generate_cover: options.generate_cover,
             clean_metadata: options.clean_metadata,
             text_cleanup: options.text_cleanup,
+            unwrap_svg: options.unwrap_svg,
+            generate_ncx: options.generate_ncx,
             edit_title: editTitle,
             edit_author: editAuthor,
         });
