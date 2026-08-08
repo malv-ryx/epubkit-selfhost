@@ -300,18 +300,17 @@ def process_image(image_bytes: bytes, filename: str, options: ImageOptions = Non
         if options.grayscale:
             current_img = current_img.convert('L')
 
-            # Levels adjustment (Blacks/Midtones/Whites)
+            # Levels adjustment (Blacks/Midtones/Whites) if customized
             if options.black_point > 0 or options.white_point < 255 or (options.gamma != 1.0 and options.gamma != 128):
                 current_img = _apply_levels(current_img, options.black_point, options.white_point, options.gamma)
                 details_parts.append(f"levels [{options.black_point}, {options.gamma}, {options.white_point}]")
-
-            # Contrast enhancement (before quantization for best results)
-            if options.contrast_boost:
+            elif options.contrast_boost:
                 if options.eink_quantize:
                     # Auto-stretch histogram first for better level mapping
                     current_img = ImageOps.autocontrast(current_img, cutoff=1)
                 enhancer = ImageEnhance.Contrast(current_img)
                 current_img = enhancer.enhance(options.contrast_factor)
+                details_parts.append(f"contrast {options.contrast_factor}x")
 
             # Quantize to device e-ink levels with dithering
             if options.eink_quantize:
@@ -322,9 +321,6 @@ def process_image(image_bytes: bytes, filename: str, options: ImageOptions = Non
                     details_parts.append(f"{len(options.gray_levels)}-level grayscale")
             else:
                 details_parts.append("grayscale")
-
-            if options.contrast_boost:
-                details_parts.append(f"contrast {options.contrast_factor}x")
 
             # Convert back to RGB for JPEG compatibility
             current_img = current_img.convert('RGB')

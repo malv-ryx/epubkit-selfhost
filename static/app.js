@@ -217,7 +217,7 @@ function renderFileList(files) {
 
     const firstValid = files.find(f => f.task_id && !f.error);
     if (firstValid) {
-        initCoverAdjustment(firstValid.task_id);
+        initCoverAdjustment(firstValid.task_id, firstValid.file_size);
     }
 }
 
@@ -448,10 +448,13 @@ if (coverAdjustToggle) {
     });
 }
 
-function initCoverAdjustment(taskId) {
+function initCoverAdjustment(taskId, origFileSize = 0) {
     activePreviewTaskId = taskId;
     if (coverAdjustCard) {
         coverAdjustCard.style.display = 'block';
+    }
+    if (origFileSize > 0 && coverOrigKb) {
+        coverOrigKb.textContent = formatBytes(origFileSize);
     }
     updateCoverPreview();
 }

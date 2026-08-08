@@ -179,13 +179,14 @@ async def cover_preview(
 
         if grayscale:
             img = img.convert('L')
-            # Apply levels
+            # Apply levels if customized; otherwise apply auto-contrast
             if black_point > 0 or white_point < 255 or gamma != 128:
                 img = _apply_levels(img, black_point, white_point, gamma)
-            if contrast:
+            elif contrast:
                 img = ImageOps.autocontrast(img, cutoff=1)
                 enhancer = ImageEnhance.Contrast(img)
                 img = enhancer.enhance(1.5)
+
             # Quantize with Floyd-Steinberg dithering to 4 levels
             img = _quantize_to_levels(img, [0, 85, 170, 255])
             img = img.convert('RGB')
@@ -201,6 +202,7 @@ async def cover_preview(
         headers = {
             "X-Original-Size": str(orig_size),
             "X-Processed-Size": str(processed_size),
+            "Access-Control-Expose-Headers": "X-Original-Size, X-Processed-Size",
             "Cache-Control": "no-cache, no-store, must-revalidate",
         }
         return Response(content=buf.getvalue(), media_type="image/jpeg", headers=headers)
